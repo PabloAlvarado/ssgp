@@ -8,6 +8,7 @@ from gpitch.audio import Audio
 from scipy import fftpack
 from myplots import plotgp
 from sklearn.metrics import mean_squared_error as mse
+from gpitch import window_overlap
 
 
 class SoSp:
@@ -67,7 +68,7 @@ class SoSp:
             data.append(Audio(path=self.train_path, filename=lfiles[i], frames=32000))
         self.train_data = data
 
-    def load_test(self, window_size=3200, start=0, frames=-1, test_data_path=None):
+    def load_test(self, window_size=2001, start=0, frames=-1, test_data_path=None):
 
         # test_file = gpitch.methods.load_filenames(directory=self.test_path, pattern=self.instrument + "_mixture")[0]
 
@@ -87,6 +88,14 @@ class SoSp:
 
         self.test_data.x = self.real_src[0].x.copy()
         self.test_data.y = self.real_src[0].y.copy() + self.real_src[1].y.copy() + self.real_src[2].y.copy()
+
+        if self.test_data.y.size == 16000*14:
+            self.test_data.y = np.vstack((self.test_data.y, np.zeros((1, 1)) ))
+            self.test_data.x = np.linspace(0.,
+                                           (self.test_data.y.size - 1.)/self.test_data.fs,
+                                           self.test_data.y.size).reshape(-1, 1)
+            # print self.test_data.fs
+
         self.test_data.windowed()
 
     def plot_traindata(self, figsize=None):
@@ -232,8 +241,11 @@ class SoSp:
 
         for i in range(nwin):
             a, b = gpitch.init_liv(x=self.test_data.X[i], y=self.test_data.Y[i], num_sources=1)
-            z[i] = a[0][0][::1]
+            z[i] = a[0][0][::1]  # use extrema as inducing variables
             u[i] = b[::1]
+
+            # z[i] = self.test_data.X[i].copy() # use all data as inducing variables
+            # u[i] = self.test_data.Y[i].copy()
         self.inducing = [z, u]
 
     def init_model(self):
@@ -258,8 +270,10 @@ class SoSp:
         # self.model.likelihood.variance.fixed = True
 
         for i in range(len(self.pitches)):
-            self.model.kern.kern_list[i].kern_list[0].variance = 1.
-            self.model.kern.kern_list[i].kern_list[0].lengthscales = self.params[0][i].copy()
+            # self.model.kern.kern_list[i].kern_list[0].variance = 1.
+            # self.model.kern.kern_list[i].kern_list[0].lengthscales = self.params[0][i].copy()
+            self.model.kern.kern_list[i].variance = 1.
+            self.model.kern.kern_list[i].lengthscales = self.params[0][i].copy()
 
     def optimize(self, maxiter=1000, disp=1, nwin=None):
 
@@ -279,11 +293,13 @@ class SoSp:
                              z=self.inducing[0][i])
 
             # optimize window
+            print("optimizing window " + str(i))
             self.model.optimize(disp=disp, maxiter=maxiter)
 
             # save learned params
             for j in range(len(self.pitches)):
-                self.matrix_var[j, i] = self.model.kern.kern_list[j].kern_list[0].variance.value.copy()
+                self.matrix_var[j, i] = self.model.kern.kern_list[j].variance.value.copy()
+                # self.matrix_var[j, i] = self.model.kern.kern_list[j].kern_list[0].variance.value.copy()
 
             # predict mixture function
             mean, var = self.model.predict_f(self.test_data.X[i].copy())
@@ -327,18 +343,39 @@ class SoSp:
             m1.append(self.smean[i][0])
             m2.append(self.smean[i][1])
             m3.append(self.smean[i][2])
-        m1 = np.asarray(m1).reshape(-1, 1)
-        m2 = np.asarray(m2).reshape(-1, 1)
-        m3 = np.asarray(m3).reshape(-1, 1)
+        # m1 = np.asarray(m1).reshape(-1, 1)
+        # m2 = np.asarray(m2).reshape(-1, 1)
+        # m3 = np.asarray(m3).reshape(-1, 1)
+        ws_aux = 2001
+        n_aux = self.test_data.x.size
+        m1 = window_overlap.merged_mean(y=m1, ws=ws_aux, n=n_aux)
+        m2 = window_overlap.merged_mean(y=m2, ws=ws_aux, n=n_aux)
+        m3 = window_overlap.merged_mean(y=m3, ws=ws_aux, n=n_aux)
 
         v1, v2, v3 = [], [], []
         for i in range(len(self.smean)):
             v1.append(self.svar[i][0])
             v2.append(self.svar[i][1])
             v3.append(self.svar[i][2])
-        v1 = np.asarray(v1).reshape(-1, 1)
-        v2 = np.asarray(v2).reshape(-1, 1)
-        v3 = np.asarray(v3).reshape(-1, 1)
+        # v1 = np.asarray(v1).reshape(-1, 1)
+        # v2 = np.asarray(v2).reshape(-1, 1)
+        # v3 = np.asarray(v3).reshape(-1, 1)
+        v1 = window_overlap.merged_variance(y=v1, ws=ws_aux, n=n_aux)
+        v2 = window_overlap.merged_variance(y=v2, ws=ws_aux, n=n_aux)
+        v3 =  window_overlap.merged_variance(y=v3, ws=ws_aux, n=n_aux)
+
+
+        if m1.size == 224001:
+            m1 = m1[0:-1].reshape(-1, 1)
+            m2 = m2[0:-1].reshape(-1, 1)
+            m3 = m3[0:-1].reshape(-1, 1)
+
+            v1 = v1[0:-1].reshape(-1, 1)
+            v2 = v2[0:-1].reshape(-1, 1)
+            v3 = v3[0:-1].reshape(-1, 1)
+            self.test_data.x = self.test_data.x[0:-1].reshape(-1, 1)
+            self.test_data.y = self.test_data.y[0:-1].reshape(-1, 1)
+
         self.esource = [[m1, v1], [m2, v2], [m3, v3]]  # estimated sources
 
     def plot_results(self, figsize=(16, 3*4)):
