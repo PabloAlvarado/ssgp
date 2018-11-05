@@ -1,5 +1,6 @@
 from gpflow.kernels import Matern32, Matern12
 from gpitch.kernels import MercerCosMix
+from matern12_spectral_mixture import Matern12sm
 import gpflow
 import pickle
 
@@ -20,13 +21,21 @@ def init_kern_com(num_pitches, lengthscale, energy, frequency, len_fixed=True):
     kern_com, kern_exp, kern_per = [], [], []
 
     for i in range(num_pitches):
-        kern_exp.append(Matern12(1, lengthscales=lengthscale[i].copy(), variance=1.0) )
-        kern_exp[i].lengthscales.fixed = len_fixed
-
-        kern_per.append(MercerCosMix(1, energy=energy[i].copy(), frequency=frequency[i].copy(), variance=1.0,))
-        kern_per[i].fixed = True
-
-        kern_com.append( kern_exp[i] * kern_per[i] )
+        # kern_exp.append(Matern12(1, lengthscales=lengthscale[i].copy(), variance=1.0) )
+        # kern_exp[i].lengthscales.fixed = len_fixed
+        #
+        # kern_per.append(MercerCosMix(1, energy=energy[i].copy(), frequency=frequency[i].copy(), variance=1.0,))
+        # kern_per[i].fixed = True
+        #
+        # kern_com.append( kern_exp[i] * kern_per[i] )
+        kern_com.append(
+                        Matern12sm(1,
+                                   variance=1.,
+                                   lengthscales=lengthscale[i].copy(),
+                                   energy=energy[i].copy(),
+                                   frequencies=frequency[i].copy(),
+                                   len_fixed=len_fixed)
+                        )
     return kern_com
 
 

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/../code-paper/.idea/code-paper.iml" filepath="$PROJECT_DIR$/../code-paper/.idea/code-paper.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/gpitch.iml" filepath="$PROJECT_DIR$/.idea/gpitch.iml" />
+    </modules>
+  </component>
+</project>

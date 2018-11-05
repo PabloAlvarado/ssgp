@@ -7,57 +7,55 @@ from gpitch.methods import logistic
 def windowed(x, y, ws):
     n = x.size
     l = (ws-1)/2
+    nw = (n - ws) / l + 1
     xout = []
     yout = []
-    nw = (n - ws)/l + 1
     for i in range(nw):
-        # if i == 0 :
-        #     win = signal.hann(ws).reshape(-1, 1)
-        #     win[0:l] = 1.
-        # elif i == nw-1:
-        #     win = signal.hann(ws).reshape(-1, 1)
-        #     win[-l:] = 1.
-        # else:
-        #     win = signal.hann(ws).reshape(-1, 1)
-        xout.append(x[i*l : i*l + ws].copy().reshape(-1, 1))
-        yout.append(y[i*l : i*l + ws].copy().reshape(-1, 1))
-
+        xout.append(x[i*l:i*l + ws].copy().reshape(-1, 1))
+        yout.append(y[i*l:i*l + ws].copy().reshape(-1, 1))
     return xout, yout
 
 
-def merged_y(y, ws):
-    l = (ws-1)/2
+def merged_mean(y, ws, n):
     nw = len(y)
-    n = (ws-1)/2 * (nw - 1) + ws
-
-    # for i in range(len(y)):
-    #     if i == 0 :
-    #         win = signal.hann(ws).reshape(-1, 1)
-    #         win[0:l] = 1.
-    #     elif i == nw-1:
-    #         win = signal.hann(ws).reshape(-1, 1)
-    #         win[-l:] = 1.
-    #     else:
-    #         win = signal.hann(ws).reshape(-1, 1)
-    #     y[i] = y[i]/(win + 0.0001)
-
+    ll = (ws-1)/2
     for i in range(len(y)):
-        if i == 0 :
+        if i == 0:
             win = signal.hann(ws).reshape(-1, 1)
-            win[0:l] = 1.
+            win[0:ll] = 1.
         elif i == nw-1:
             win = signal.hann(ws).reshape(-1, 1)
-            win[-l:] = 1.
+            win[-ll:] = 1.
         else:
             win = signal.hann(ws).reshape(-1, 1)
         y[i] = y[i]*win
-
     yout = np.zeros((n, 1))
-    yout[0:l] = y[0][0:l]
-    yout[-l-1:] = y[-1][-l-1:]
-
+    yout[0:ll] = y[0][0:ll]
+    yout[-ll:] = y[-1][-ll:]
     for i in range(nw-1):
-        yout[(i+1)*l : (i+2)*l] = y[i][-l-1:-1].copy() + y[i+1][0:l].copy()
+        yout[(i + 1) * ll: (i + 2) * ll + 1] = y[i][ll:].copy() + y[i+1][0:ll+1].copy()
+    return yout
+
+
+def merged_variance(y, ws, n):
+    nw = len(y)
+    ll = (ws-1)/2
+    for i in range(len(y)):
+        if i == 0:
+            win = signal.hann(ws).reshape(-1, 1)
+            win[0:ll] = 1.
+        elif i == nw-1:
+            win = signal.hann(ws).reshape(-1, 1)
+            win[-ll:] = 1.
+        else:
+            win = signal.hann(ws).reshape(-1, 1)
+        win = win**2
+        y[i] = y[i]*win
+    yout = np.zeros((n, 1))
+    yout[0:ll] = y[0][0:ll]
+    yout[-ll:] = y[-1][-ll:]
+    for i in range(nw-1):
+        yout[(i + 1) * ll: (i + 2) * ll + 1] = y[i][ll:].copy() + y[i+1][0:ll+1].copy()
     return yout
 
 

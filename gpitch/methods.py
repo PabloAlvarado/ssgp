@@ -283,7 +283,18 @@ lfiles_training = [ ['011PFNOM_M60_train.wav',
                     'ALVARADO_M64_train.wav',
                     'ALVARADO_M67_train.wav']]
 
-
+# lfiles_training_new = [ ['011PFNOF_M60_train.wav',
+#                     '011PFNOF_M64_train.wav',
+#                     '011PFNOF_M67_train.wav'],
+#                     ['131EGLPF_M60_train.wav',
+#                     '131EGLPF_M64_train.wav',
+#                     '131EGLPF_M67_train.wav'],
+#                     ['311CLNOF_M60_train.wav',
+#                     '311CLNOF_M64_train.wav',
+#                     '311CLNOF_M67_train.wav'],
+#                     ['ALVARADO_M60_train.wav',
+#                     'ALVARADO_M64_train.wav',
+#                     'ALVARADO_M67_train.wav']]
 
 
 
