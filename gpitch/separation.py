@@ -16,7 +16,7 @@ class SoSp:
     Source separation model class
     """
 
-    def __init__(self, instrument, frames, pitches=None, gpu='0', load=True):
+    def __init__(self, instrument, frames, pitches=None, gpu='0', load=True, fullgp=False):
 
         # init session
         self.sess, self.path = gpitch.init_settings(visible_device=gpu)
@@ -24,9 +24,9 @@ class SoSp:
         self.instrument = instrument
         self.pitches = pitches
 
-        self.train_path = "/import/c4dm-04/alvarado/datasets/ss_amt/training_data/"
-        self.test_path = "/import/c4dm-04/alvarado/datasets/ss_amt/test_data/"
-        self.kernel_path = '/import/c4dm-04/alvarado/results/sampling_covariance/icassp19/'
+        self.train_path = "data/training_data/"
+        self.test_path = "data/test_data/"
+        self.kernel_path = 'params/'
 
         self.train_data = [None]
         self.test_data = Audio()
@@ -53,7 +53,7 @@ class SoSp:
         self.matrix_var = np.zeros((nrow, ncol))
 
         self.init_kernel(load=load)
-        self.init_model()
+        self.init_model(fullgp)
 
     def load_train(self, train_data_path=None):
 
@@ -90,7 +90,7 @@ class SoSp:
         self.test_data.y = self.real_src[0].y.copy() + self.real_src[1].y.copy() + self.real_src[2].y.copy()
 
         if self.test_data.y.size == 16000*14:
-            self.test_data.y = np.vstack((self.test_data.y, np.zeros((1, 1)) ))
+            self.test_data.y = np.vstack((self.test_data.y, np.zeros((1, 1))))
             self.test_data.x = np.linspace(0.,
                                            (self.test_data.y.size - 1.)/self.test_data.fs,
                                            self.test_data.y.size).reshape(-1, 1)
@@ -194,7 +194,7 @@ class SoSp:
 
                 # approx kernel
                 params = gpitch.kernelfit.fit(kern=skern[i], audio=self.train_data[i].y,
-                                              file_name=self.train_data[i].name, max_par=max_par)[0]
+                                              file_name=self.train_data[i].name, max_par=max_par, fs=16000)[0]
                 self.params[0].append(params[0])  # lengthscale
                 self.params[1].append(params[1])  # variances
                 self.params[2].append(params[2])   # frequencies
@@ -234,23 +234,25 @@ class SoSp:
                                                               frequency=self.params[2],
                                                               len_fixed=True)
 
-    def init_inducing(self):
+    def init_inducing(self, fullgp):
         nwin = len(self.test_data.X)
         u = nwin * [None]
         z = nwin * [None]
 
         for i in range(nwin):
-            a, b = gpitch.init_liv(x=self.test_data.X[i], y=self.test_data.Y[i], num_sources=1)
-            z[i] = a[0][0][::1]  # use extrema as inducing variables
-            u[i] = b[::1]
 
-            # z[i] = self.test_data.X[i].copy() # use all data as inducing variables
-            # u[i] = self.test_data.Y[i].copy()
+            if fullgp:
+                z[i] = self.test_data.X[i].copy() # use all data as inducing variables
+                u[i] = self.test_data.Y[i].copy()
+            else:
+                a, b = gpitch.init_liv(x=self.test_data.X[i], y=self.test_data.Y[i], num_sources=1)
+                z[i] = a[0][0][::1]  # use extrema as inducing variables
+                u[i] = b[::1]
         self.inducing = [z, u]
 
-    def init_model(self):
+    def init_model(self, fullgp):
         """Hi"""
-        self.init_inducing()  # init inducing points
+        self.init_inducing(fullgp)  # init inducing points
 
         # init model kernel
         kern_model = np.sum(self.kern_pitches)
@@ -293,7 +295,7 @@ class SoSp:
                              z=self.inducing[0][i])
 
             # optimize window
-            print("optimizing window " + str(i))
+            # print("optimizing window " + str(i))
             self.model.optimize(disp=disp, maxiter=maxiter)
 
             # save learned params
@@ -362,8 +364,7 @@ class SoSp:
         # v3 = np.asarray(v3).reshape(-1, 1)
         v1 = window_overlap.merged_variance(y=v1, ws=ws_aux, n=n_aux)
         v2 = window_overlap.merged_variance(y=v2, ws=ws_aux, n=n_aux)
-        v3 =  window_overlap.merged_variance(y=v3, ws=ws_aux, n=n_aux)
-
+        v3 = window_overlap.merged_variance(y=v3, ws=ws_aux, n=n_aux)
 
         if m1.size == 224001:
             m1 = m1[0:-1].reshape(-1, 1)
@@ -421,4 +422,3 @@ class SoSp:
         for i in range(num_sources):
             list_mse.append(np.sqrt(mse(y_true=self.real_src[i].y, y_pred=self.esource[i][0])))
         return np.mean(list_mse)
-
