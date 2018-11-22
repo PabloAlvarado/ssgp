@@ -11,4 +11,4 @@ The audio files (.wav) of the reconstructed sources using the proposed approach 
 [1]: https://arxiv.org/abs/1810.12679
 [2]: https://github.com/GPflow/GPflow
 [3]: https://github.com/PabloAlvarado/gpitch
-[4]: sites.google.com/site/paalvaradoduran/ssgp
+[4]: https://sites.google.com/site/paalvaradoduran/ssgp
